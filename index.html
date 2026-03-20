@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>NIFTY Intraday Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0e1a;--bg2:#0f1525;--bg3:#151d35;--card:#111827;--card2:#1a2340;
+  --border:#1e2d4a;--border2:#243558;--accent:#00d4ff;--accent2:#0099cc;
+  --green:#00e676;--green2:#00c853;--red:#ff1744;--red2:#d50000;--yellow:#ffd740;
+  --text:#e8eaf6;--text2:#8896b3;--text3:#4a5a7a;
+  --font-main:'Syne',sans-serif;--font-mono:'JetBrains Mono',monospace;
+  --radius:12px;--shadow:0 4px 32px rgba(0,0,0,0.5);
+}
+[data-theme="light"] {
+  --bg:#f0f4ff;--bg2:#e8edf8;--bg3:#dde4f5;--card:#ffffff;--card2:#f5f8ff;
+  --border:#ccd5ee;--border2:#b8c4e2;--text:#0f1535;--text2:#4a5a7a;--text3:#8896b3;
+  --shadow:0 4px 32px rgba(0,0,0,0.1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font-main);min-height:100vh;overflow-x:hidden}
+
+/* HEADER */
+.header{background:var(--card);border-bottom:1px solid var(--border);padding:0 20px;position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(0,0,0,0.4)}
+.header-inner{max-width:1600px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:60px;gap:10px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),#0066ff);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#fff;font-family:var(--font-mono);flex-shrink:0}
+.logo-text{font-size:16px;font-weight:700;letter-spacing:-0.5px;white-space:nowrap}
+.logo-text span{color:var(--accent)}
+.header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.live-badge{display:flex;align-items:center;gap:6px;background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.3);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;color:var(--green);font-family:var(--font-mono)}
+.live-dot{width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(1.3)}}
+
+/* SYNC STATUS */
+.sync-status{display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);cursor:pointer;transition:all .2s}
+.sync-status.idle{color:var(--text2);border-color:var(--border)}
+.sync-status.syncing{color:var(--accent);border-color:var(--accent);animation:syncPulse 1s infinite}
+.sync-status.ok{color:var(--green);border-color:rgba(0,230,118,0.4)}
+.sync-status.err{color:var(--red);border-color:rgba(255,23,68,0.4)}
+.sync-status.not-configured{color:var(--yellow);border-color:rgba(255,215,64,0.4)}
+@keyframes syncPulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+.btn-icon{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 12px;cursor:pointer;color:var(--text);font-size:13px;font-family:var(--font-main);transition:all .2s;white-space:nowrap}
+.btn-icon:hover{border-color:var(--accent);color:var(--accent)}
+
+/* MAIN */
+.main{max-width:1600px;margin:0 auto;padding:20px}
+
+/* SECTION TITLE */
+.section-title{font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text2);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.section-title::before{content:'';width:3px;height:15px;background:var(--accent);border-radius:2px;flex-shrink:0}
+
+/* SETUP BANNER */
+.setup-banner{background:rgba(255,215,64,0.08);border:1px solid rgba(255,215,64,0.3);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;display:flex;align-items:flex-start;gap:14px}
+.setup-banner.hidden{display:none}
+.setup-icon{font-size:22px;flex-shrink:0;margin-top:2px}
+.setup-text h4{font-size:14px;font-weight:700;color:var(--yellow);margin-bottom:6px}
+.setup-text p{font-size:13px;color:var(--text2);line-height:1.6}
+.setup-text a{color:var(--accent);text-decoration:none}
+.setup-text code{background:var(--bg3);padding:2px 6px;border-radius:4px;font-family:var(--font-mono);font-size:12px;color:var(--accent)}
+.setup-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+
+/* CONFIG CARD */
+.config-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px;box-shadow:var(--shadow)}
+.config-card.hidden{display:none}
+.config-grid{display:grid;grid-template-columns:1fr 200px;gap:12px;align-items:end}
+@media(max-width:600px){.config-grid{grid-template-columns:1fr}}
+
+/* FORM CARD */
+.form-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px;box-shadow:var(--shadow)}
+.form-grid{display:grid;grid-template-columns:130px 130px repeat(5,1fr);gap:12px;align-items:end}
+@media(max-width:1100px){.form-grid{grid-template-columns:1fr 1fr 1fr 1fr}}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr 1fr}}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group label{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text2);font-family:var(--font-mono)}
+.form-group input,.form-group select{background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 11px;font-size:14px;font-family:var(--font-mono);outline:none;transition:border .2s,box-shadow .2s;width:100%}
+.form-group input:focus,.form-group select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,212,255,0.1)}
+.form-group select option{background:var(--card)}
+.calc-display{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 11px;font-family:var(--font-mono);font-size:14px;color:var(--accent);min-height:39px;display:flex;align-items:center}
+.calc-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+@media(max-width:600px){.calc-row{grid-template-columns:1fr 1fr}}
+.form-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.btn{padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;font-family:var(--font-main);cursor:pointer;border:none;transition:all .2s;letter-spacing:.3px}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#0066ff);color:#fff;box-shadow:0 4px 15px rgba(0,212,255,0.3)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,212,255,0.4)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-secondary{background:var(--bg3);border:1px solid var(--border2);color:var(--text)}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:rgba(255,23,68,0.1);border:1px solid rgba(255,23,68,0.3);color:var(--red)}
+.btn-danger:hover{background:rgba(255,23,68,0.2)}
+.btn-green{background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.3);color:var(--green)}
+.btn-green:hover{background:rgba(0,230,118,0.2)}
+
+/* INSIGHTS */
+.insights-bar{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:var(--shadow)}
+.insight-label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text2);white-space:nowrap}
+.insight-chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{padding:4px 11px;border-radius:20px;font-size:11px;font-weight:600;font-family:var(--font-mono)}
+.chip-bull{background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.3);color:var(--green)}
+.chip-bear{background:rgba(255,23,68,0.12);border:1px solid rgba(255,23,68,0.3);color:var(--red)}
+.chip-neutral{background:rgba(255,215,64,0.12);border:1px solid rgba(255,215,64,0.3);color:var(--yellow)}
+
+/* SUMMARY */
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+@media(max-width:900px){.summary-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.summary-grid{grid-template-columns:repeat(2,1fr)}}
+.sum-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.sum-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.sum-card.ab::before{background:linear-gradient(90deg,var(--accent),#0066ff)}
+.sum-card.ag::before{background:linear-gradient(90deg,var(--green),#00c853)}
+.sum-card.ar::before{background:linear-gradient(90deg,var(--red),#ff6090)}
+.sum-card.ay::before{background:linear-gradient(90deg,var(--yellow),#ff9100)}
+.sum-label{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text2);margin-bottom:6px;font-family:var(--font-mono)}
+.sum-value{font-size:20px;font-weight:700;font-family:var(--font-mono);letter-spacing:-0.5px}
+.sum-sub{font-size:11px;color:var(--text2);margin-top:3px;font-family:var(--font-mono)}
+.text-green{color:var(--green)!important}
+.text-red{color:var(--red)!important}
+.text-yellow{color:var(--yellow)!important}
+.text-accent{color:var(--accent)!important}
+
+/* DATA TABLE */
+.data-section{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px;overflow:hidden;box-shadow:var(--shadow)}
+.data-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.date-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.date-tab{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--text2);transition:all .2s;font-family:var(--font-mono)}
+.date-tab.active,.date-tab:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,0.08)}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:12px}
+thead th{padding:10px 12px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text2);background:var(--bg2);border-bottom:1px solid var(--border);white-space:nowrap}
+thead th:first-child{text-align:left}
+tbody tr{border-bottom:1px solid var(--border);transition:background .15s}
+tbody tr:hover{background:rgba(0,212,255,0.04)}
+tbody tr:last-child{border-bottom:none}
+td{padding:10px 12px;text-align:right;white-space:nowrap}
+td:first-child{text-align:left}
+.td-time{color:var(--accent);font-weight:600}
+.td-spot{font-weight:700}
+.td-actions{display:flex;gap:5px;justify-content:flex-end}
+.icon-btn{width:26px;height:26px;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .15s}
+.icon-btn-edit{background:rgba(0,212,255,0.1);color:var(--accent)}
+.icon-btn-edit:hover{background:rgba(0,212,255,0.25)}
+.icon-btn-del{background:rgba(255,23,68,0.1);color:var(--red)}
+.icon-btn-del:hover{background:rgba(255,23,68,0.25)}
+.badge-up{color:var(--green)}.badge-dn{color:var(--red)}.badge-ne{color:var(--text2)}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3);font-family:var(--font-mono);font-size:13px}
+.empty-state div{font-size:28px;margin-bottom:10px}
+
+/* CHARTS */
+.charts-section{margin-bottom:20px}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden;box-shadow:var(--shadow)}
+.chart-header{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.chart-title{font-size:13px;font-weight:700}
+.chart-body{padding:14px;position:relative}
+.chart-body canvas{max-height:260px}
+.chart-collapsed{display:none}
+.toggle-switch{position:relative;width:42px;height:22px;cursor:pointer;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0;position:absolute}
+.toggle-track{position:absolute;top:0;left:0;right:0;bottom:0;background:var(--border);border-radius:11px;transition:background .2s}
+.toggle-thumb{position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,0.4)}
+.toggle-switch input:checked+.toggle-track{background:var(--accent)}
+.toggle-switch input:checked~.toggle-thumb{transform:translateX(20px)}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:999;backdrop-filter:blur(4px)}
+.modal-overlay.hidden{display:none}
+.modal{background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:24px;max-width:440px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,0.6)}
+.modal h3{font-size:17px;margin-bottom:10px}
+.modal p{color:var(--text2);font-size:13px;margin-bottom:18px;line-height:1.7}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+
+/* TOAST */
+.toast-container{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--card2);border:1px solid var(--border2);border-radius:10px;padding:10px 16px;font-size:12px;font-weight:600;font-family:var(--font-mono);box-shadow:0 8px 24px rgba(0,0,0,0.4);animation:slideIn .3s ease,fadeOut .3s ease 2.7s forwards;display:flex;align-items:center;gap:8px;max-width:300px}
+.toast-success{border-left:3px solid var(--green)}
+.toast-error{border-left:3px solid var(--red)}
+.toast-info{border-left:3px solid var(--accent)}
+.toast-warn{border-left:3px solid var(--yellow)}
+@keyframes slideIn{from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes fadeOut{to{opacity:0;transform:translateX(40px)}}
+
+/* SPINNER */
+.spinner{width:14px;height:14px;border:2px solid rgba(0,212,255,0.3);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">N</div>
+      <div class="logo-text">AK <span>NFY</span></div>
+    </div>
+    <div class="header-right">
+      <div class="live-badge"><div class="live-dot"></div> LIVE</div>
+      <div id="clock" style="font-family:var(--font-mono);font-size:12px;color:var(--text2)"></div>
+      <div class="sync-status not-configured" id="sync-status" onclick="toggleConfigPanel()" title="Click to configure Google Sheets sync">
+        <div class="sync-dot"></div>
+        <span id="sync-label">Sheets: Not set up</span>
+      </div>
+      <button class="btn-icon" onclick="manualSync()" id="sync-btn" title="Sync now">⟳ Sync</button>
+      <button class="btn-icon" onclick="toggleTheme()">☀/☾</button>
+    </div>
+  </div>
+</header>
+
+<div class="main">
+
+<!-- SETUP BANNER (shown until configured) -->
+<div class="setup-banner" id="setup-banner">
+  <div class="setup-icon">📋</div>
+  <div class="setup-text">
+    <h4>Connect Google Sheets for permanent storage</h4>
+    <p>Your data is currently saved in browser storage only. To sync across devices (PC + Mobile), connect Google Sheets using a free Apps Script URL. Takes about 5 minutes. <br>
+    <strong style="color:var(--yellow)">Step 1:</strong> Open <a href="https://script.google.com" target="_blank">script.google.com</a> → New Project → paste the <code>Code.gs</code> file provided.<br>
+    <strong style="color:var(--yellow)">Step 2:</strong> Deploy → New deployment → Web app → Anyone → Copy the URL.<br>
+    <strong style="color:var(--yellow)">Step 3:</strong> Paste it below and click Save.</p>
+    <div class="setup-actions">
+      <button class="btn btn-green" onclick="showConfigPanel()">⚙ Enter Script URL</button>
+      <button class="btn btn-secondary" onclick="dismissBanner()">Dismiss</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIG PANEL -->
+<div class="config-card hidden" id="config-panel">
+  <div class="section-title" style="margin-bottom:12px">Google Sheets Configuration</div>
+  <div class="config-grid">
+    <div class="form-group">
+      <label>Apps Script Web App URL</label>
+      <input type="url" id="cfg-url" placeholder="https://script.google.com/macros/s/AKfy.../exec" style="font-size:12px">
+    </div>
+    <div class="form-group">
+      <label>Secret Key</label>
+      <input type="text" id="cfg-key" placeholder="NIFTY2024SECRET" value="NIFTY2024SECRET">
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+    <button class="btn btn-primary" onclick="saveConfig()">💾 Save & Test Connection</button>
+    <button class="btn btn-danger" onclick="clearConfig()">✕ Remove Config</button>
+    <button class="btn btn-secondary" onclick="hideConfigPanel()">Cancel</button>
+  </div>
+  <p style="font-size:11px;color:var(--text2);margin-top:10px;font-family:var(--font-mono)">
+    ⚠ The Secret Key must match the <code style="color:var(--accent)">SECRET_KEY</code> value in your Code.gs file.
+    Default is <code style="color:var(--accent)">NIFTY2024SECRET</code> — change both if you want extra security.
+  </p>
+</div>
+
+<!-- DATA ENTRY FORM -->
+<div class="section-title">Data Entry</div>
+<div class="form-card">
+  <div class="form-grid">
+    <div class="form-group">
+      <label>Date</label>
+      <input type="date" id="f-date">
+    </div>
+    <div class="form-group">
+      <label>Time</label>
+      <select id="f-time">
+        <option value="09:00">09:00 AM (Pre)</option>
+        <option value="09:30">09:30 AM</option>
+        <option value="10:00">10:00 AM</option>
+        <option value="10:30">10:30 AM</option>
+        <option value="11:00">11:00 AM</option>
+        <option value="11:30">11:30 AM</option>
+        <option value="12:00">12:00 PM</option>
+        <option value="12:30">12:30 PM</option>
+        <option value="13:00">01:00 PM</option>
+        <option value="13:30">01:30 PM</option>
+        <option value="14:00">02:00 PM</option>
+        <option value="14:30">02:30 PM</option>
+        <option value="15:00">03:00 PM</option>
+        <option value="15:30">03:30 PM</option>
+        <option value="19:30">07:30 PM (EOD)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>NIFTY Spot Price</label>
+      <input type="number" id="f-spot" placeholder="24500" step="0.05">
+    </div>
+    <div class="form-group">
+      <label>Total CALL OI (Cr)</label>
+      <input type="number" id="f-call-oi" placeholder="123.45" step="0.01">
+    </div>
+    <div class="form-group">
+      <label>Total PUT OI (Cr)</label>
+      <input type="number" id="f-put-oi" placeholder="156.78" step="0.01">
+    </div>
+    <div class="form-group">
+      <label>Chg CALL OI (L)</label>
+      <input type="number" id="f-call-chg" placeholder="12.50" step="0.01">
+    </div>
+    <div class="form-group">
+      <label>Chg PUT OI (L)</label>
+      <input type="number" id="f-put-chg" placeholder="-8.30" step="0.01">
+    </div>
+  </div>
+  <div class="calc-row">
+    <div class="form-group">
+      <label>PCR (Auto)</label>
+      <div class="calc-display" id="pcr-preview">—</div>
+    </div>
+    <div class="form-group">
+      <label>Spot Diff (Auto)</label>
+      <div class="calc-display" id="sdiff-preview">—</div>
+    </div>
+    <div class="form-group">
+      <label>Spot % Change (Auto)</label>
+      <div class="calc-display" id="spct-preview">—</div>
+    </div>
+  </div>
+  <input type="hidden" id="edit-id">
+  <div class="form-actions">
+    <button class="btn btn-primary" id="save-btn" onclick="saveEntry()">＋ Add Entry</button>
+    <button class="btn btn-secondary" onclick="clearForm()">✕ Clear</button>
+    <button class="btn btn-danger" onclick="showClearDayModal()">🗑 Clear Day</button>
+    <button class="btn btn-green" onclick="exportCSV()">⬇ CSV</button>
+  </div>
+</div>
+
+<!-- INSIGHTS -->
+<div class="insights-bar">
+  <div class="insight-label">Market Intelligence</div>
+  <div class="insight-chips" id="insight-chips"><span class="chip chip-neutral">— Awaiting data</span></div>
+</div>
+
+<!-- DAILY SUMMARY -->
+<div class="section-title">Daily Summary</div>
+<div class="summary-grid">
+  <div class="sum-card ab"><div class="sum-label">Opening Spot</div><div class="sum-value" id="s-open">—</div><div class="sum-sub">09:30 entry</div></div>
+  <div class="sum-card ag"><div class="sum-label">Closing Spot</div><div class="sum-value" id="s-close">—</div><div class="sum-sub">03:30 entry</div></div>
+  <div class="sum-card ag"><div class="sum-label">Day High</div><div class="sum-value text-green" id="s-high">—</div><div class="sum-sub" id="s-high-time">—</div></div>
+  <div class="sum-card ar"><div class="sum-label">Day Low</div><div class="sum-value text-red" id="s-low">—</div><div class="sum-sub" id="s-low-time">—</div></div>
+  <div class="sum-card ab"><div class="sum-label">Total CALL OI Chg</div><div class="sum-value" id="s-callchg">—</div><div class="sum-sub">Lakhs</div></div>
+  <div class="sum-card ab"><div class="sum-label">Total PUT OI Chg</div><div class="sum-value" id="s-putchg">—</div><div class="sum-sub">Lakhs</div></div>
+  <div class="sum-card ay"><div class="sum-label">Average PCR</div><div class="sum-value" id="s-pcr">—</div><div class="sum-sub">Put-Call Ratio</div></div>
+  <div class="sum-card ay"><div class="sum-label">Net Spot Movement</div><div class="sum-value" id="s-net">—</div><div class="sum-sub">Close − Open</div></div>
+</div>
+
+<!-- DATA TABLE -->
+<div class="section-title">Intraday Data</div>
+<div class="data-section">
+  <div class="data-header">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div class="date-tabs" id="date-tabs"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <!-- DATE PICKER -->
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text2);font-family:var(--font-mono);white-space:nowrap;">📅 Load Date</label>
+        <input type="date" id="history-date-picker"
+          style="background:var(--bg2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:6px 10px;font-size:12px;font-family:var(--font-mono);outline:none;cursor:pointer;"
+          max="" title="Pick any date to load from Sheets">
+        <button onclick="loadHistoryDate()" id="load-history-btn"
+          style="background:linear-gradient(135deg,var(--accent),#0066ff);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;font-family:var(--font-main);cursor:pointer;white-space:nowrap;transition:all .2s;">
+          ⬇ Load
+        </button>
+      </div>
+      <span id="viewing-date" style="font-size:12px;font-weight:700;font-family:var(--font-mono);color:var(--accent);white-space:nowrap;"></span>
+      <!-- DIFF TOGGLE -->
+      <div style="display:flex;align-items:center;gap:8px;padding:4px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--bg2);">
+        <span style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text2);font-family:var(--font-mono);white-space:nowrap;">▲▼ Diff</span>
+        <label class="toggle-switch" title="Toggle ▲▼ change indicators on Call OI, Put OI, PCR, Chg Call, Chg Put">
+          <input type="checkbox" id="diff-toggle" checked onchange="toggleDiffView(this)">
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Time</th><th>Spot</th><th>Diff</th><th>%</th>
+        <th>Call OI (Cr)</th><th>Put OI (Cr)</th><th>PCR</th>
+        <th>Chg Call (L)</th><th>Chg Put (L)</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="data-tbody"></tbody>
+    </table>
+    <div class="empty-state" id="empty-state" style="display:none">
+      <div>📊</div>No data for this date. Add entries above.
+    </div>
+  </div>
+</div>
+
+<!-- CHARTS -->
+<div class="section-title">Charts</div>
+<div class="charts-section">
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">📈 NIFTY Spot Price Trend</div>
+      <label class="toggle-switch"><input type="checkbox" checked onchange="toggleChart('spot-chart',this)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+    </div>
+    <div class="chart-body" id="spot-chart-wrap"><canvas id="spot-chart"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">📉 PCR Trend</div>
+      <label class="toggle-switch"><input type="checkbox" checked onchange="toggleChart('pcr-chart',this)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+    </div>
+    <div class="chart-body" id="pcr-chart-wrap"><canvas id="pcr-chart"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">🔵🔴 Total OI — Call vs Put (Crores)</div>
+      <label class="toggle-switch"><input type="checkbox" checked onchange="toggleChart('oi-chart',this)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+    </div>
+    <div class="chart-body" id="oi-chart-wrap"><canvas id="oi-chart"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">📊 Change in OI (Lakhs)</div>
+      <label class="toggle-switch"><input type="checkbox" checked onchange="toggleChart('chg-chart',this)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+    </div>
+    <div class="chart-body" id="chg-chart-wrap"><canvas id="chg-chart"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">📊 Spot Price Difference</div>
+      <label class="toggle-switch"><input type="checkbox" checked onchange="toggleChart('diff-chart',this)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+    </div>
+    <div class="chart-body" id="diff-chart-wrap"><canvas id="diff-chart"></canvas></div>
+  </div>
+</div>
+</div><!-- /main -->
+
+<!-- MODALS -->
+<div class="modal-overlay hidden" id="clear-modal">
+  <div class="modal">
+    <h3>🗑 Clear Day Data</h3>
+    <p>Permanently delete ALL entries for <strong id="clear-date-label"></strong>? This will also remove them from Google Sheets if sync is active.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('clear-modal')">Cancel</button>
+      <button class="btn btn-danger" onclick="clearDayData()">Yes, Delete All</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay hidden" id="del-modal">
+  <div class="modal">
+    <h3>Delete Entry</h3>
+    <p>Delete this entry? It will be removed from Google Sheets too if sync is active.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('del-modal')">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ====================================================
+//  STORAGE
+// ====================================================
+const STORE_KEY = 'nifty_intraday_v3';
+let allData = {};
+try { allData = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch(e) { allData = {}; }
+function saveStore() { localStorage.setItem(STORE_KEY, JSON.stringify(allData)); }
+
+// ====================================================
+//  GOOGLE SHEETS CONFIG
+// ====================================================
+const CFG_KEY = 'nifty_sheets_cfg';
+let sheetsConfig = null;
+try { sheetsConfig = JSON.parse(localStorage.getItem(CFG_KEY)); } catch(e) {}
+
+function saveConfig() {
+  const url = document.getElementById('cfg-url').value.trim();
+  const key = document.getElementById('cfg-key').value.trim();
+  if (!url) { toast('Please enter the Apps Script URL', 'error'); return; }
+  sheetsConfig = { url, key };
+  localStorage.setItem(CFG_KEY, JSON.stringify(sheetsConfig));
+  hideConfigPanel();
+  document.getElementById('setup-banner').classList.add('hidden');
+  toast('Testing connection…', 'info');
+  testConnection();
+}
+function clearConfig() {
+  sheetsConfig = null;
+  localStorage.removeItem(CFG_KEY);
+  setSyncStatus('not-configured', 'Sheets: Not set up');
+  hideConfigPanel();
+  toast('Google Sheets disconnected', 'info');
+}
+function showConfigPanel() {
+  document.getElementById('config-panel').classList.remove('hidden');
+  if (sheetsConfig) {
+    document.getElementById('cfg-url').value = sheetsConfig.url || '';
+    document.getElementById('cfg-key').value = sheetsConfig.key || 'NIFTY2024SECRET';
+  }
+}
+function hideConfigPanel() { document.getElementById('config-panel').classList.add('hidden'); }
+function toggleConfigPanel() {
+  const panel = document.getElementById('config-panel');
+  if (panel.classList.contains('hidden')) showConfigPanel(); else hideConfigPanel();
+}
+function showConfigPanelFromBanner() { showConfigPanel(); }
+function dismissBanner() { document.getElementById('setup-banner').classList.add('hidden'); }
+
+function setSyncStatus(state, label) {
+  const el = document.getElementById('sync-status');
+  el.className = 'sync-status ' + state;
+  document.getElementById('sync-label').textContent = label;
+}
+
+// ====================================================
+//  SHEETS API — Two strategies:
+//
+//  WRITE (save/update/delete/clearDay/syncAll):
+//    → img-pixel trick: new Image().src = url
+//      Fires a GET request with no CORS restrictions at all.
+//      Fire-and-forget. GAS receives it and writes to sheet.
+//      Status shown optimistically (data is safe in localStorage).
+//
+//  READ (testConnection / manualSync):
+//    → JSONP via <script> tag injection.
+//      GAS returns callback(json) which we catch globally.
+//      Works from file:// with zero CORS issues.
+// ====================================================
+
+// ── BUILD URL HELPER ──────────────────────────────────────────
+function buildSheetsUrl(params = {}) {
+  const url = new URL(sheetsConfig.url);
+  url.searchParams.set('key', sheetsConfig.key);
+  Object.entries(params).forEach(([k, v]) => {
+    url.searchParams.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+  });
+  return url.toString();
+}
+
+// ── WRITE: fire-and-forget via Image pixel ────────────────────
+function sheetsWrite(params = {}) {
+  if (!sheetsConfig) return;
+  const url = buildSheetsUrl(params);
+  const img = new Image();
+  img.src = url;
+  // No response needed — data already in localStorage
+}
+
+// ── READ: JSONP via <script> tag ──────────────────────────────
+let _jsonpCallbacks = {};
+function sheetsRead(params = {}) {
+  return new Promise((resolve, reject) => {
+    if (!sheetsConfig) return reject(new Error('Not configured'));
+    const cbName = '_gcb_' + Date.now();
+    const timeout = setTimeout(() => {
+      delete window[cbName];
+      reject(new Error('Timeout — no response from Google Sheets'));
+    }, 12000);
+
+    window[cbName] = function(data) {
+      clearTimeout(timeout);
+      delete window[cbName];
+      const el = document.getElementById(cbName);
+      if (el) el.remove();
+      resolve(data);
+    };
+
+    const url = buildSheetsUrl({ ...params, callback: cbName });
+    const script = document.createElement('script');
+    script.id = cbName;
+    script.src = url;
+    script.onerror = () => {
+      clearTimeout(timeout);
+      delete window[cbName];
+      script.remove();
+      reject(new Error('Script load failed'));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+// ── TEST CONNECTION ───────────────────────────────────────────
+async function testConnection() {
+  setSyncStatus('syncing', 'Testing…');
+  try {
+    const data = await sheetsRead({ action: 'fetch' });
+    if (data && data.ok) {
+      setSyncStatus('ok', 'Sheets: Connected');
+      toast('Google Sheets connected ✓', 'success');
+      // Push all local data to sheets (fire-and-forget)
+      const allEntries = Object.values(allData).flat();
+      if (allEntries.length > 0) {
+        sheetsWrite({ action: 'syncAll', data: allEntries });
+      }
+    } else {
+      setSyncStatus('err', 'Sheets: Error');
+      toast('Connection failed: ' + (data?.error || 'Unknown'), 'error');
+    }
+  } catch(e) {
+    setSyncStatus('err', 'Sheets: Error');
+    toast('Connection error: ' + e.message, 'error');
+  }
+}
+
+// ── MANUAL SYNC (pull from Sheets → localStorage) ────────────
+async function manualSync() {
+  if (!sheetsConfig) { showConfigPanel(); return; }
+  setSyncStatus('syncing', 'Pulling from Sheets…');
+  try {
+    const data = await sheetsRead({ action: 'fetch', data: viewDate });
+    if (data && data.ok) {
+      if (data.entries && data.entries.length > 0) {
+        allData[viewDate] = data.entries;
+        recalcDate(viewDate);
+        saveStore();
+        render();
+        toast('Pulled ' + data.entries.length + ' entries from Sheets ✓', 'success');
+      } else {
+        toast('No entries in Sheets for this date', 'info');
+      }
+      setSyncStatus('ok', 'Sheets: Connected');
+    } else {
+      setSyncStatus('err', 'Sheets: Error');
+      toast('Sync failed: ' + (data?.error || 'Unknown'), 'error');
+    }
+  } catch(e) {
+    setSyncStatus('err', 'Sheets: Error');
+    toast('Sync error: ' + e.message, 'error');
+  }
+}
+
+// ── PUSH TO SHEETS (confirmed via JSONP) ─────────────────────
+async function pushToSheets(action, payload) {
+  if (!sheetsConfig) return;
+  setSyncStatus('syncing', 'Saving to Sheets…');
+  const params = { action };
+  if (payload.entry)   params.data = JSON.stringify(payload.entry);
+  if (payload.id)      params.data = payload.id;
+  if (payload.date)    params.data = payload.date;
+  if (payload.entries) params.data = JSON.stringify(payload.entries);
+  try {
+    const res = await sheetsRead(params); // JSONP — confirmed response
+    if (res && res.ok) {
+      setSyncStatus('ok', 'Sheets: Saved ✓');
+      setTimeout(() => { if (sheetsConfig) setSyncStatus('ok', 'Sheets: Connected'); }, 2000);
+    } else {
+      setSyncStatus('err', 'Sheets: Save failed');
+      toast('Sheets error: ' + (res?.error || 'Unknown'), 'warn');
+    }
+  } catch(e) {
+    setSyncStatus('err', 'Sheets: Error');
+    toast('Sheets write error: ' + e.message, 'error');
+  }
+}
+
+// ====================================================
+//  STATE
+// ====================================================
+let viewDate = todayStr();
+let deleteTargetId = null;
+let charts = {};
+
+function todayStr() { return new Date().toISOString().slice(0,10); }
+function getDateEntries(date) { return (allData[date]||[]).slice().sort((a,b)=>a.time.localeCompare(b.time)); }
+function genId() { return Date.now().toString(36)+Math.random().toString(36).slice(2); }
+
+// ====================================================
+//  CLOCK
+// ====================================================
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+}
+setInterval(updateClock,1000); updateClock();
+
+// ====================================================
+//  THEME
+// ====================================================
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  document.documentElement.setAttribute('data-theme', cur==='dark'?'light':'dark');
+  setTimeout(()=>Object.values(charts).forEach(c=>{if(c)c.update()}),100);
+}
+
+// ====================================================
+//  TOAST
+// ====================================================
+function toast(msg, type='info') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.innerHTML = (type==='success'?'✓':type==='error'?'✕':type==='warn'?'⚠':'ℹ')+' '+msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(()=>el.remove(),3200);
+}
+
+// ====================================================
+//  FORM INIT
+// ====================================================
+document.getElementById('f-date').value = todayStr();
+(function(){
+  const now=new Date(), hh=now.getHours(), mm=now.getMinutes();
+  const times=['09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','19:30'];
+  let best='09:30';
+  for(const t of times){const[th,tm]=t.split(':').map(Number);if(hh>th||(hh===th&&mm>=tm))best=t;}
+  document.getElementById('f-time').value=best;
+})();
+
+['f-call-oi','f-put-oi','f-spot','f-date','f-time'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',livePreview);
+  document.getElementById(id).addEventListener('change',livePreview);
+});
+
+function livePreview() {
+  const callOI=parseFloat(document.getElementById('f-call-oi').value);
+  const putOI=parseFloat(document.getElementById('f-put-oi').value);
+  const spot=parseFloat(document.getElementById('f-spot').value);
+  const date=document.getElementById('f-date').value;
+  const time=document.getElementById('f-time').value;
+  const editId=document.getElementById('edit-id').value;
+  let pcrTxt='—',diffTxt='—',pctTxt='—';
+  if(!isNaN(callOI)&&callOI>0&&!isNaN(putOI)) pcrTxt=(putOI/callOI).toFixed(2);
+  if(!isNaN(spot)&&date){
+    const entries=getDateEntries(date).filter(e=>e.id!==editId&&e.time<time);
+    if(entries.length>0){
+      const prev=entries[entries.length-1];
+      const diff=spot-prev.spot;
+      diffTxt=(diff>=0?'+':'')+diff.toFixed(2);
+      pctTxt=(diff>=0?'+':'')+(diff/prev.spot*100).toFixed(2)+'%';
+    }
+  }
+  document.getElementById('pcr-preview').textContent=pcrTxt;
+  document.getElementById('sdiff-preview').textContent=diffTxt;
+  document.getElementById('spct-preview').textContent=pctTxt;
+}
+
+function clearForm() {
+  ['f-spot','f-call-oi','f-put-oi','f-call-chg','f-put-chg'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('edit-id').value='';
+  document.getElementById('save-btn').textContent='＋ Add Entry';
+  livePreview();
+}
+
+// ====================================================
+//  SAVE / UPDATE ENTRY
+// ====================================================
+async function saveEntry() {
+  const date=document.getElementById('f-date').value;
+  const time=document.getElementById('f-time').value;
+  const spot=parseFloat(document.getElementById('f-spot').value);
+  const callOI=parseFloat(document.getElementById('f-call-oi').value);
+  const putOI=parseFloat(document.getElementById('f-put-oi').value);
+  const callChg=parseFloat(document.getElementById('f-call-chg').value);
+  const putChg=parseFloat(document.getElementById('f-put-chg').value);
+  const editId=document.getElementById('edit-id').value;
+
+  if(!date){toast('Select a date','error');return;}
+  if(isNaN(spot)){toast('Enter NIFTY Spot Price','error');return;}
+  if(isNaN(callOI)){toast('Enter Total CALL OI','error');return;}
+  if(isNaN(putOI)){toast('Enter Total PUT OI','error');return;}
+
+  if(!allData[date]) allData[date]=[];
+  if(!editId){
+    const dup=allData[date].find(e=>e.time===time);
+    if(dup){toast(`Entry for ${time} exists. Use Edit.`,'error');return;}
+  }
+
+  const pcr=callOI>0?+(putOI/callOI).toFixed(2):0;
+  const sorted=allData[date].filter(e=>e.id!==editId&&e.time<time).sort((a,b)=>a.time.localeCompare(b.time));
+  const prev=sorted.length?sorted[sorted.length-1]:null;
+  const spotDiff=prev?+(spot-prev.spot).toFixed(2):0;
+  const spotPct=prev?+((spot-prev.spot)/prev.spot*100).toFixed(2):0;
+
+  const entry={
+    id:editId||genId(), date, time, spot, callOI, putOI,
+    callChg:isNaN(callChg)?0:callChg, putChg:isNaN(putChg)?0:putChg,
+    pcr, spotDiff, spotPct
+  };
+
+  const isUpdate = !!editId;
+  if(isUpdate){
+    const idx=allData[date].findIndex(e=>e.id===editId);
+    if(idx>-1) allData[date][idx]=entry;
+    toast('Entry updated','success');
+  } else {
+    allData[date].push(entry);
+    toast('Entry added','success');
+  }
+
+  recalcDate(date);
+  saveStore();
+  viewDate=date;
+  clearForm();
+  render();
+
+  // Async push to sheets
+  const latestEntry = allData[date].find(e=>e.id===entry.id) || entry;
+  pushToSheets(isUpdate?'update':'save', isUpdate?{entry:latestEntry}:{entry:latestEntry});
+}
+
+function recalcDate(date) {
+  const sorted=(allData[date]||[]).slice().sort((a,b)=>a.time.localeCompare(b.time));
+  for(let i=0;i<sorted.length;i++){
+    const prev=i>0?sorted[i-1]:null;
+    sorted[i].spotDiff=prev?+(sorted[i].spot-prev.spot).toFixed(2):0;
+    sorted[i].spotPct=prev?+((sorted[i].spot-prev.spot)/prev.spot*100).toFixed(2):0;
+    sorted[i].pcr=sorted[i].callOI>0?+(sorted[i].putOI/sorted[i].callOI).toFixed(2):0;
+  }
+  allData[date]=sorted;
+}
+
+// ====================================================
+//  EDIT / DELETE
+// ====================================================
+function editEntry(id) {
+  const entry=(allData[viewDate]||[]).find(e=>e.id===id);
+  if(!entry) return;
+  document.getElementById('f-date').value=entry.date;
+  document.getElementById('f-time').value=entry.time;
+  document.getElementById('f-spot').value=entry.spot;
+  document.getElementById('f-call-oi').value=entry.callOI;
+  document.getElementById('f-put-oi').value=entry.putOI;
+  document.getElementById('f-call-chg').value=entry.callChg;
+  document.getElementById('f-put-chg').value=entry.putChg;
+  document.getElementById('edit-id').value=id;
+  document.getElementById('save-btn').textContent='✔ Update Entry';
+  livePreview();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function deleteEntry(id) {
+  deleteTargetId=id;
+  document.getElementById('del-modal').classList.remove('hidden');
+}
+async function confirmDelete() {
+  if(!deleteTargetId) return;
+  const id = deleteTargetId;
+  deleteTargetId = null;
+  allData[viewDate] = (allData[viewDate]||[]).filter(e => e.id !== id);
+  recalcDate(viewDate);
+  saveStore(); render();
+  closeModal('del-modal');
+  toast('Deleting from Sheets…', 'info');
+  await pushToSheets('delete', { id });
+  toast('Entry deleted from Sheets ✓', 'success');
+}
+
+function showClearDayModal() {
+  document.getElementById('clear-date-label').textContent=viewDate;
+  document.getElementById('clear-modal').classList.remove('hidden');
+}
+async function clearDayData() {
+  const dateToDelete = viewDate; // capture before any state change
+  allData[dateToDelete] = [];
+  saveStore(); render();
+  closeModal('clear-modal');
+  toast(`Clearing Sheets data for ${dateToDelete}…`, 'info');
+  await pushToSheets('clearDay', { date: dateToDelete });
+  toast(`All data for ${dateToDelete} cleared from Sheets ✓`, 'success');
+}
+
+function closeModal(id){document.getElementById(id).classList.add('hidden')}
+document.querySelectorAll('.modal-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.add('hidden')}));
+
+// ====================================================
+//  EXPORT CSV
+// ====================================================
+function exportCSV() {
+  const entries=getDateEntries(viewDate);
+  if(!entries.length){toast('No data to export','error');return;}
+  const header=['Date','Time','Spot Price','Total Call OI (Cr)','Total Put OI (Cr)','PCR','Chg Call OI (L)','Chg Put OI (L)','Spot Diff','Spot %'];
+  const rows=entries.map(e=>[e.date,e.time,e.spot,e.callOI,e.putOI,e.pcr,e.callChg,e.putChg,e.spotDiff,e.spotPct]);
+  const csv=[header,...rows].map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download=`NIFTY_${viewDate}.csv`;
+  a.click();
+  toast('CSV exported ✓','success');
+}
+
+// ====================================================
+//  HISTORY DATE PICKER
+// ====================================================
+
+// Set max date to today so future dates can't be picked
+document.getElementById('history-date-picker').max = todayStr();
+document.getElementById('history-date-picker').value = todayStr();
+
+async function loadHistoryDate() {
+  const picked = document.getElementById('history-date-picker').value;
+  if (!picked) { toast('Please select a date', 'error'); return; }
+
+  // If data already in localStorage, just switch to it
+  if (allData[picked] && allData[picked].length > 0) {
+    viewDate = picked;
+    render();
+    toast(`Loaded ${picked} from local storage`, 'success');
+    return;
+  }
+
+  // Fetch from Google Sheets if configured
+  if (!sheetsConfig) {
+    viewDate = picked;
+    render();
+    toast('No data found locally. Connect Sheets to fetch historical data.', 'warn');
+    return;
+  }
+
+  // Show loading state
+  const btn = document.getElementById('load-history-btn');
+  btn.textContent = '⏳ Loading…';
+  btn.disabled = true;
+  setSyncStatus('syncing', 'Fetching…');
+
+  try {
+    const data = await sheetsRead({ action: 'fetch', data: picked });
+    if (data && data.ok) {
+      if (data.entries && data.entries.length > 0) {
+        // Store in localStorage for fast future access
+        allData[picked] = data.entries;
+        recalcDate(picked);
+        saveStore();
+        viewDate = picked;
+        render();
+        setSyncStatus('ok', 'Sheets: Connected');
+        toast(`✓ Loaded ${data.entries.length} entries for ${picked}`, 'success');
+      } else {
+        viewDate = picked;
+        render();
+        setSyncStatus('ok', 'Sheets: Connected');
+        toast(`No entries found in Sheets for ${picked}`, 'info');
+      }
+    } else {
+      setSyncStatus('err', 'Sheets: Error');
+      toast('Failed to fetch: ' + (data?.error || 'Unknown error'), 'error');
+    }
+  } catch(e) {
+    setSyncStatus('err', 'Sheets: Error');
+    toast('Fetch error: ' + e.message, 'error');
+  } finally {
+    btn.textContent = '⬇ Load';
+    btn.disabled = false;
+  }
+}
+
+// Also allow pressing Enter on the date picker
+document.getElementById('history-date-picker').addEventListener('keydown', e => {
+  if (e.key === 'Enter') loadHistoryDate();
+});
+
+// ====================================================
+//  DATE TABS
+// ====================================================
+function renderDateTabs() {
+  const dates=Object.keys(allData).filter(d=>(allData[d]||[]).length>0).sort().reverse().slice(0,15);
+  if(!dates.includes(viewDate)) dates.unshift(viewDate);
+  document.getElementById('date-tabs').innerHTML=dates.map(d=>`<div class="date-tab ${d===viewDate?'active':''}" onclick="selectDate('${d}')">${d}</div>`).join('');
+  document.getElementById('viewing-date').textContent = '📅 ' + viewDate;
+  // Keep date picker in sync with viewed date
+  const picker = document.getElementById('history-date-picker');
+  if (picker) picker.value = viewDate;
+}
+function selectDate(d) {
+  viewDate = d;
+  // If not in localStorage, try fetching from Sheets
+  if ((!allData[d] || allData[d].length === 0) && sheetsConfig) {
+    document.getElementById('history-date-picker').value = d;
+    loadHistoryDate();
+  } else {
+    render();
+  }
+}
+
+// ====================================================
+//  TABLE
+// ====================================================
+
+// State: whether ▲▼ diff badges are shown
+let showDiff = true;
+
+function toggleDiffView(cb) {
+  showDiff = cb.checked;
+  renderTable();
+}
+
+// Helper: renders a value with optional (▲/▼ diff) badge
+// Respects global showDiff toggle
+function cellWithDiff(val, prevVal, decimals=2, valColor='') {
+  const vStr = val.toFixed(decimals);
+  // If toggle is OFF — just show plain value
+  if (!showDiff) {
+    return `<span class="${valColor}">${vStr}</span>`;
+  }
+  // Toggle ON — show diff badge
+  if (prevVal === null || prevVal === undefined) {
+    return `<span class="${valColor}">${vStr}</span>`;
+  }
+  const diff = +(val - prevVal).toFixed(decimals);
+  if (diff === 0) {
+    return `<span class="${valColor}">${vStr}</span> <span style="color:var(--text3);font-size:11px">(—)</span>`;
+  }
+  const arrow   = diff > 0 ? '▲' : '▼';
+  const cls     = diff > 0 ? 'badge-up' : 'badge-dn';
+  const absDiff = Math.abs(diff).toFixed(decimals);
+  return `<span class="${valColor}">${vStr}</span> <span class="${cls}" style="font-size:11px">(${arrow} ${absDiff})</span>`;
+}
+
+function renderTable() {
+  const entries = getDateEntries(viewDate);
+  const tbody   = document.getElementById('data-tbody');
+  if (!entries.length) {
+    tbody.innerHTML = '';
+    document.getElementById('empty-state').style.display = 'block';
+    return;
+  }
+  document.getElementById('empty-state').style.display = 'none';
+
+  tbody.innerHTML = entries.map((e, i) => {
+    const prev = i > 0 ? entries[i-1] : null;
+
+    // Spot diff cols
+    const dc = e.spotDiff > 0 ? 'badge-up' : e.spotDiff < 0 ? 'badge-dn' : 'badge-ne';
+    const ds = e.spotDiff !== 0 ? (e.spotDiff > 0 ? '▲ ' : '▼ ') + Math.abs(e.spotDiff).toFixed(2) : '—';
+    const ps = e.spotPct  !== 0 ? (e.spotPct  > 0 ? '+' : '') + e.spotPct.toFixed(2) + '%' : '—';
+
+    // PCR color
+    const pc = e.pcr >= 1.3 ? 'text-green' : e.pcr <= 0.7 ? 'text-red' : 'text-accent';
+
+    // Columns with (▲/▼ diff) — compare to previous row
+    const callOICell  = cellWithDiff(e.callOI,  prev?.callOI,  2);
+    const putOICell   = cellWithDiff(e.putOI,   prev?.putOI,   2);
+    const pcrCell     = cellWithDiff(e.pcr,      prev?.pcr,     2, pc);
+    const callChgCell = cellWithDiff(e.callChg,  prev?.callChg, 2);
+    const putChgCell  = cellWithDiff(e.putChg,   prev?.putChg,  2);
+
+    return `<tr>
+      <td class="td-time">${e.time}</td>
+      <td class="td-spot">${e.spot.toLocaleString('en-IN')}</td>
+      <td class="${dc}">${ds}</td>
+      <td class="${dc}">${ps}</td>
+      <td>${callOICell}</td>
+      <td>${putOICell}</td>
+      <td>${pcrCell}</td>
+      <td>${callChgCell}</td>
+      <td>${putChgCell}</td>
+      <td><div class="td-actions">
+        <button class="icon-btn icon-btn-edit" onclick="editEntry('${e.id}')">✎</button>
+        <button class="icon-btn icon-btn-del"  onclick="deleteEntry('${e.id}')">✕</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ====================================================
+//  SUMMARY
+// ====================================================
+function renderSummary() {
+  const entries=getDateEntries(viewDate);
+  const fmt=v=>v!=null?v.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+  const open=entries.find(e=>e.time==='09:30');
+  const close=entries.find(e=>e.time==='15:30');
+  const spots=entries.map(e=>e.spot);
+  const high=spots.length?Math.max(...spots):null;
+  const low=spots.length?Math.min(...spots):null;
+  const highE=entries.find(e=>e.spot===high), lowE=entries.find(e=>e.spot===low);
+  const totalCC=entries.reduce((s,e)=>s+e.callChg,0);
+  const totalPC=entries.reduce((s,e)=>s+e.putChg,0);
+  const avgPcr=entries.length?entries.reduce((s,e)=>s+e.pcr,0)/entries.length:null;
+  const net=(open&&close)?close.spot-open.spot:null;
+  document.getElementById('s-open').textContent=open?fmt(open.spot):'—';
+  document.getElementById('s-close').textContent=close?fmt(close.spot):'—';
+  document.getElementById('s-high').textContent=high?fmt(high):'—';
+  document.getElementById('s-low').textContent=low?fmt(low):'—';
+  document.getElementById('s-high-time').textContent=highE?`@ ${highE.time}`:'—';
+  document.getElementById('s-low-time').textContent=lowE?`@ ${lowE.time}`:'—';
+  document.getElementById('s-callchg').textContent=entries.length?fmt(totalCC):'—';
+  document.getElementById('s-putchg').textContent=entries.length?fmt(totalPC):'—';
+  document.getElementById('s-pcr').textContent=avgPcr?avgPcr.toFixed(2):'—';
+  const netEl=document.getElementById('s-net');
+  if(net!==null){netEl.textContent=(net>=0?'+':'')+fmt(net);netEl.className='sum-value '+(net>0?'text-green':net<0?'text-red':'');}
+  else{netEl.textContent='—';netEl.className='sum-value';}
+  document.getElementById('s-callchg').className='sum-value '+(totalCC>0?'text-red':totalCC<0?'text-green':'');
+  document.getElementById('s-putchg').className='sum-value '+(totalPC>0?'text-green':totalPC<0?'text-red':'');
+}
+
+// ====================================================
+//  INSIGHTS
+// ====================================================
+function renderInsights() {
+  const entries=getDateEntries(viewDate);
+  if(!entries.length){document.getElementById('insight-chips').innerHTML='<span class="chip chip-neutral">— Awaiting data</span>';return;}
+  const chips=[];
+  const last=entries[entries.length-1], pcr=last.pcr;
+  const ccs=entries.reduce((s,e)=>s+e.callChg,0), pcs=entries.reduce((s,e)=>s+e.putChg,0);
+  const spotMov=entries[entries.length-1].spot-entries[0].spot;
+  if(pcr>1.3) chips.push({t:'Bullish Bias Building 🟢',c:'bull'});
+  if(pcr<0.7) chips.push({t:'Bearish Pressure Detected 🔴',c:'bear'});
+  if(pcr>=1.0&&pcr<=1.3) chips.push({t:'Mild Bullish Bias',c:'bull'});
+  if(ccs>5) chips.push({t:'Heavy Call Writing 📋',c:'bear'});
+  if(pcs>5) chips.push({t:'Put Accumulation 📈',c:'bull'});
+  if(ccs<-3) chips.push({t:'Call Unwinding Underway',c:'bull'});
+  if(pcs<-3) chips.push({t:'Short Covering Likely 🔄',c:'bull'});
+  if(Math.abs(spotMov)>200) chips.push({t:spotMov>0?'Strong Bullish Momentum 🚀':'Sharp Selloff ⚠',c:spotMov>0?'bull':'bear'});
+  if(Math.abs(last.spotDiff)<5&&entries.length>3) chips.push({t:'Consolidation Zone',c:'neutral'});
+  if(last.callOI>last.putOI*1.2) chips.push({t:'Strong Resistance Forming',c:'bear'});
+  if(last.putOI>last.callOI*1.2) chips.push({t:'Strong Support Visible',c:'bull'});
+  if(!chips.length) chips.push({t:'Market Balanced — Monitor Closely',c:'neutral'});
+  document.getElementById('insight-chips').innerHTML=chips.map(c=>`<span class="chip chip-${c.c}">${c.t}</span>`).join('');
+}
+
+// ====================================================
+//  CHARTS
+// ====================================================
+function gc(){const d=document.documentElement.getAttribute('data-theme')!=='light';return{grid:d?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.07)',tick:d?'#8896b3':'#4a5a7a'};}
+function mkChart(ctx,type,labels,datasets,extra={}){
+  const c=gc();
+  return new Chart(ctx,{type,data:{labels,datasets},options:{responsive:true,maintainAspectRatio:true,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{labels:{color:c.tick,font:{family:'JetBrains Mono',size:11},boxWidth:12}},tooltip:{backgroundColor:'#0f1525',borderColor:'#1e2d4a',borderWidth:1,titleColor:'#e8eaf6',bodyColor:'#8896b3',titleFont:{family:'JetBrains Mono'},bodyFont:{family:'JetBrains Mono'}}},
+    scales:{x:{grid:{color:c.grid},ticks:{color:c.tick,font:{family:'JetBrains Mono',size:10}}},y:{grid:{color:c.grid},ticks:{color:c.tick,font:{family:'JetBrains Mono',size:10}}},...(extra.scales||{})},
+    ...extra}});
+}
+function dc(k){if(charts[k]){charts[k].destroy();charts[k]=null;}}
+function renderCharts(){
+  const entries=getDateEntries(viewDate), labels=entries.map(e=>e.time);
+  dc('spot'); charts.spot=mkChart(document.getElementById('spot-chart'),'line',labels,[{label:'NIFTY Spot',data:entries.map(e=>e.spot),borderColor:'#00d4ff',backgroundColor:'rgba(0,212,255,0.08)',borderWidth:2.5,pointRadius:4,pointBackgroundColor:'#00d4ff',tension:0.3,fill:true}]);
+  dc('pcr');
+  const pd=entries.map(e=>e.pcr);
+  charts.pcr=mkChart(document.getElementById('pcr-chart'),'line',labels,[{label:'PCR',data:pd,borderColor:'#ffd740',backgroundColor:pd.map(v=>v>=1.3?'rgba(0,230,118,0.3)':v<=0.7?'rgba(255,23,68,0.3)':'rgba(0,212,255,0.1)'),borderWidth:2.5,pointRadius:5,pointBackgroundColor:pd.map(v=>v>=1.3?'#00e676':v<=0.7?'#ff1744':'#ffd740'),tension:0.3,fill:true}]);
+  dc('oi'); charts.oi=mkChart(document.getElementById('oi-chart'),'line',labels,[{label:'Call OI (Cr)',data:entries.map(e=>e.callOI),borderColor:'#ff1744',backgroundColor:'rgba(255,23,68,0.08)',borderWidth:2.5,pointRadius:4,tension:0.3,fill:false},{label:'Put OI (Cr)',data:entries.map(e=>e.putOI),borderColor:'#00e676',backgroundColor:'rgba(0,230,118,0.08)',borderWidth:2.5,pointRadius:4,tension:0.3,fill:false}]);
+  dc('chg'); charts.chg=mkChart(document.getElementById('chg-chart'),'bar',labels,[{label:'Chg Call OI (L)',data:entries.map(e=>e.callChg),backgroundColor:entries.map(e=>e.callChg>=0?'rgba(255,23,68,0.7)':'rgba(0,230,118,0.7)'),borderRadius:4},{label:'Chg Put OI (L)',data:entries.map(e=>e.putChg),backgroundColor:entries.map(e=>e.putChg>=0?'rgba(0,230,118,0.7)':'rgba(255,23,68,0.7)'),borderRadius:4}]);
+  dc('diff'); charts.diff=mkChart(document.getElementById('diff-chart'),'bar',labels,[{label:'Spot Diff',data:entries.map(e=>e.spotDiff),backgroundColor:entries.map(e=>e.spotDiff>0?'rgba(0,230,118,0.75)':e.spotDiff<0?'rgba(255,23,68,0.75)':'rgba(136,150,179,0.4)'),borderRadius:4}]);
+}
+function toggleChart(id,cb){document.getElementById(id+'-wrap').classList.toggle('chart-collapsed',!cb.checked);}
+
+// ====================================================
+//  RENDER
+// ====================================================
+function render(){renderDateTabs();renderTable();renderSummary();renderInsights();renderCharts();livePreview();}
+
+// ====================================================
+//  INIT
+// ====================================================
+// On load: render from localStorage immediately (always fast)
+// User can click ⟳ Sync to pull fresh data from Sheets anytime
+if (sheetsConfig) {
+  setSyncStatus('ok', 'Sheets: Connected');
+  document.getElementById('setup-banner').classList.add('hidden');
+}
+render();
+</script>
+</body>
+</html>
